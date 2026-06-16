@@ -34,7 +34,7 @@ function Login() {
             setLoading(true);
 
             const response = await fetch(
-                "https://smart-campus-web-api.vercel.app/login",
+                "https://smart-campus-web-api.vercel.app/api/login",
                 {
                     method: "POST",
                     headers: {
