@@ -26,6 +26,9 @@ import {
     // FaFire — removed (imported but never used)
 } from 'react-icons/fa'
 import NotificationsDrawer from '../components/NotificationsDrawer'
+import Navbar from "../components/layout/Navbar.tsx";
+import BottomNavigation from "../components/layout/BottomNavigation.tsx";
+import QuickNav from "../components/layout/QuickNav.tsx";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -761,7 +764,7 @@ export default function Dashboard() {
         // FIX 7: add `relative` so the absolute gradient bg-div is clipped to this element
         <main className="relative min-h-screen bg-slate-50 text-slate-900">
             <div className="absolute inset-x-0 top-0 -z-10 h-80 bg-gradient-to-b from-blue-100/70 via-sky-50/40 to-transparent" />
-
+            <Navbar notificationCount={unreadCount} />
             {/* ── Header ──────────────────────────────────────────────────────── */}
             <header className="sticky top-0 z-30 border-b border-slate-200/80 bg-white/90 backdrop-blur-xl">
                 <div className="mx-auto flex max-w-7xl items-center justify-between gap-4 px-4 py-3 lg:px-8">
@@ -975,7 +978,7 @@ export default function Dashboard() {
                             </article>
                         ))}
                 </section>
-
+                <QuickNav />
                 {/* ── Lectures + Assignments ───────────────────────────────────── */}
                 <section className="grid gap-5 pt-6 lg:grid-cols-[1fr_0.85fr]">
                     {/* Lectures */}
@@ -1093,6 +1096,7 @@ export default function Dashboard() {
                 onClose={closeAllNotifications}
                 notifications={notifications}
             />
+            <BottomNavigation />
         </main>
     )
 }

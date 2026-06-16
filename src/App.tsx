@@ -7,13 +7,30 @@ import Timetable from './pages/Timetable'
 import MyNotes from './pages/MyNotes'
 import Assignments from './pages/Assignments'
 import Profile from './pages/Profile'
+import Announcements from './pages/Announcement'
+import Events from './pages/Events'
+import Facilities from './pages/Facilities'
+import Assistant from './pages/Assistant'
+import Courses from './pages/Courses'
 import { UserProvider } from './context/UserContext'
 
 function Router() {
     const path = window.location.pathname
     const isAuthenticated = window.localStorage.getItem('smart-campus-authenticated') === 'true'
 
-    const protectedPaths = ['/dashboard', '/notes', '/my-notes', '/timetable', '/assignments', '/profile']
+    const protectedPaths = [
+        '/dashboard',
+        '/notes',
+        '/my-notes',
+        '/timetable',
+        '/assignments',
+        '/profile',
+        '/announcements',
+        '/events',
+        '/facilities',
+        '/assistant',
+        '/courses',
+    ]
 
     if (!isAuthenticated && protectedPaths.includes(path)) {
         window.history.replaceState(null, '', '/login')
@@ -42,6 +59,16 @@ function Router() {
             return <Assignments />
         case '/profile':
             return <Profile />
+        case '/announcements':
+            return <Announcements />
+        case '/events':
+            return <Events />
+        case '/facilities':
+            return <Facilities />
+        case '/assistant':
+            return <Assistant />
+        case '/courses':
+            return <Courses />
         default:
             return <Home />
     }
