@@ -1,6 +1,12 @@
 export interface User {
-    name: string;
-    registrationNumber: string;
-    completedCredits: number;
-    totalCredits: number;
+    id: string
+    name: string
+    email: string
+    registrationNumber: string
+    faculty: string
+    year: string
+    avatarUrl: string | null
+    completedCredits: number
+    totalCredits: number
+    gpa?: number | null
 }
