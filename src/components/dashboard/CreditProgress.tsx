@@ -1,30 +1,47 @@
 interface CreditProgressProps {
-	earned: number
-	required: number
+    earned: number
+    required: number
+    gpa?: number | null
 }
 
-export default function CreditProgress({ earned, required }: CreditProgressProps) {
-	const percentage = Math.min(100, Math.round((earned / required) * 100))
+/**
+ * Credit progress bar with optional GPA display.
+ * Matches the blue/indigo design system used across the dashboard.
+ */
+export default function CreditProgress({ earned, required, gpa }: CreditProgressProps) {
+    const percentage = Math.min(100, Math.round((earned / required) * 100))
 
-	return (
-		<section
-			style={{
-				borderRadius: 20,
-				border: '1px solid #dbe4f0',
-				padding: 16,
-				background: 'linear-gradient(135deg, #eff6ff, #ffffff)',
-			}}
-		>
-			<div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, marginBottom: 10 }}>
-				<div>
-					<p style={{ margin: 0, color: '#64748b', fontSize: 14 }}>Completed Credits</p>
-					<h3 style={{ margin: '4px 0 0' }}>{earned} / {required}</h3>
-				</div>
-				<strong style={{ color: '#2563eb' }}>{percentage}%</strong>
-			</div>
-			<div style={{ height: 10, borderRadius: 999, background: '#dbeafe', overflow: 'hidden' }}>
-				<div style={{ width: `${percentage}%`, height: '100%', borderRadius: 999, background: 'linear-gradient(90deg, #2563eb, #38bdf8)' }} />
-			</div>
-		</section>
-	)
+    return (
+        <section className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
+            <div className="flex items-center justify-between gap-3">
+                <div>
+                    <p className="text-sm font-semibold text-slate-900">Credit Progress</p>
+                    <p className="mt-0.5 text-sm text-slate-500">
+                        {earned} of {required} completed
+                    </p>
+                </div>
+                <span className="text-2xl font-semibold text-blue-600">{percentage}%</span>
+            </div>
+
+            <div className="mt-4 h-3 overflow-hidden rounded-full bg-slate-100">
+                <div
+                    className="h-full rounded-full bg-gradient-to-r from-blue-600 to-sky-400 transition-all duration-700"
+                    style={{ width: `${percentage}%` }}
+                />
+            </div>
+
+            {gpa !== undefined && gpa !== null && (
+                <div className="mt-4 border-t border-slate-100 pt-3">
+                    <div className="flex items-center justify-between">
+                        <p className="text-xs font-medium text-slate-500">Current GPA</p>
+                        <p className="text-base font-semibold text-slate-900">{gpa.toFixed(2)}</p>
+                    </div>
+                </div>
+            )}
+
+            <p className="mt-3 text-xs text-slate-400">
+                {required - earned} credits remaining to graduation
+            </p>
+        </section>
+    )
 }
