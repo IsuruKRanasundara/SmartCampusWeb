@@ -43,7 +43,7 @@ function  SignUp() {
             setLoading(true);
 
             const response = await fetch(
-                "http://localhost:3000/api/auth/register",
+                "https://smart-campus-web-api.vercel.app/register",
                 {
                     method: "POST",
                     headers: {

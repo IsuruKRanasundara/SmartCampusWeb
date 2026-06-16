@@ -146,7 +146,7 @@ const GRADE_POINTS: Record<string, number> = {
 }
 
 // ─── API Configuration ────────────────────────────────────────────────────────
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3000'
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'https://smart-campus-web-api.vercel.app'
 
 const api = {
     headers: () => ({
