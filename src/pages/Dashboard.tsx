@@ -1,7 +1,7 @@
-import { useState, useEffect, useRef, useCallback } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import type { ReactNode } from 'react'
 import {
-    FaBell,
+
     FaBookOpen,
     FaCalendarAlt,
     FaChartLine,
@@ -12,21 +12,11 @@ import {
     FaMapMarkerAlt,
     FaPenNib,
     FaRegCalendarCheck,
-    FaSignOutAlt,
-    FaWifi,
-    FaUser,
-    FaCog,
-    FaShieldAlt,
-    FaEnvelope,
-    FaSyncAlt,
     FaExclamationCircle,
-    FaTrophy,
-    FaBookmark,
-    FaChevronRight,
+    FaTrophy
+
     // FaFire — removed (imported but never used)
 } from 'react-icons/fa'
-import NotificationsDrawer from '../components/NotificationsDrawer'
-import Navbar from "../components/layout/Navbar.tsx";
 import BottomNavigation from "../components/layout/BottomNavigation.tsx";
 import QuickNav from "../components/layout/QuickNav.tsx";
 
@@ -105,7 +95,7 @@ interface DashboardData {
     gpa: Gpa | null
 }
 
-type AvatarSize = 'sm' | 'md' | 'lg'
+
 
 // ─── API response shapes (Smart Campus Backend) ───────────────────────────────
 
@@ -458,189 +448,10 @@ function useDashboardData() {
 
 // ─── Sub-components ───────────────────────────────────────────────────────────
 
-function Avatar({ name, avatarUrl, size = 'md' }: { name?: string; avatarUrl?: string | null; size?: AvatarSize }) {
-    const sizeMap: Record<AvatarSize, string> = { sm: 'h-9 w-9 text-sm', md: 'h-11 w-11 text-base', lg: 'h-16 w-16 text-xl' }
-    const initials = name ? name.split(' ').map((n: string) => n[0]).join('').slice(0, 2).toUpperCase() : '??'
 
-    if (avatarUrl) {
-        return (
-            <img
-                src={avatarUrl}
-                alt={name}
-                className={`${sizeMap[size]} rounded-2xl object-cover ring-2 ring-white shadow-md`}
-            />
-        )
-    }
-    return (
-        <div
-            className={`${sizeMap[size]} flex items-center justify-center rounded-2xl bg-gradient-to-br from-blue-500 to-indigo-600 font-bold text-white ring-2 ring-white shadow-md`}
-        >
-            {initials}
-        </div>
-    )
-}
 
-function ProfileDropdown({
-    profile,
-    onClose,
-    onLogout,
-}: {
-    profile: Profile | null
-    onClose: () => void
-    onLogout: () => void
-}) {
-    const ref = useRef<HTMLDivElement>(null)
 
-    useEffect(() => {
-        const handler = (e: MouseEvent) => {
-            if (ref.current && e.target instanceof Node && !ref.current.contains(e.target)) onClose()
-        }
-        document.addEventListener('mousedown', handler)
-        return () => document.removeEventListener('mousedown', handler)
-        // FIX 3: onClose is included — but callers must wrap it in useCallback to avoid
-        // re-registering the listener on every render (see Dashboard component below)
-    }, [onClose])
 
-    const menuItems = [
-        { icon: <FaUser />, label: 'My Profile', href: '/profile' },
-        { icon: <FaBookmark />, label: 'Saved Resources', href: '/resources' },
-        { icon: <FaEnvelope />, label: 'Messages', href: '/messages' },
-        { icon: <FaCog />, label: 'Settings', href: '/settings' },
-        { icon: <FaShieldAlt />, label: 'Privacy', href: '/privacy' },
-    ]
-
-    return (
-        <div
-            ref={ref}
-            className="absolute right-0 top-full z-50 mt-3 w-72 overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-2xl shadow-slate-200/80"
-            style={{ animation: 'dropdownIn 0.18s ease' }}
-        >
-            <style>{`@keyframes dropdownIn{from{opacity:0;transform:translateY(-8px)}to{opacity:1;transform:translateY(0)}}`}</style>
-
-            <div className="bg-gradient-to-br from-blue-600 to-indigo-600 p-5">
-                <div className="flex items-center gap-3">
-                    <Avatar name={profile?.name} avatarUrl={profile?.avatarUrl} size="lg" />
-                    <div className="min-w-0">
-                        <p className="truncate font-semibold text-white">{profile?.name ?? '—'}</p>
-                        <p className="truncate text-xs text-blue-100">{profile?.email ?? '—'}</p>
-                        <span className="mt-1.5 inline-block rounded-full bg-white/20 px-2.5 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-white">
-							{profile?.studentId ?? '—'}
-						</span>
-                    </div>
-                </div>
-                <div className="mt-3 flex gap-2 text-xs text-blue-100">
-                    <span className="rounded-xl bg-white/15 px-2.5 py-1">{profile?.faculty}</span>
-                    <span className="rounded-xl bg-white/15 px-2.5 py-1">{profile?.year}</span>
-                </div>
-            </div>
-
-            <nav className="p-2">
-                {menuItems.map((item) => (
-                    <a
-                        key={item.label}
-                        href={item.href}
-                        className="flex items-center gap-3 rounded-2xl px-3 py-2.5 text-sm text-slate-700 transition hover:bg-slate-50 hover:text-blue-700"
-                    >
-						<span className="flex h-8 w-8 items-center justify-center rounded-xl bg-slate-100 text-slate-500">
-							{item.icon}
-						</span>
-                        <span className="font-medium">{item.label}</span>
-                        <FaChevronRight className="ml-auto text-[10px] text-slate-400" />
-                    </a>
-                ))}
-            </nav>
-
-            <div className="border-t border-slate-100 p-2">
-                <button
-                    onClick={onLogout}
-                    className="flex w-full items-center gap-3 rounded-2xl px-3 py-2.5 text-sm font-medium text-rose-600 transition hover:bg-rose-50"
-                >
-					<span className="flex h-8 w-8 items-center justify-center rounded-xl bg-rose-50 text-rose-500">
-						<FaSignOutAlt />
-					</span>
-                    Sign out
-                </button>
-            </div>
-        </div>
-    )
-}
-
-function NotificationsPanel({
-    notifications,
-    onClose,
-    onViewAll,
-}: {
-    notifications: Notification[]
-    onClose: () => void
-    onViewAll: () => void
-}) {
-    const ref = useRef<HTMLDivElement>(null)
-
-    useEffect(() => {
-        const handler = (e: MouseEvent) => {
-            if (ref.current && e.target instanceof Node && !ref.current.contains(e.target)) onClose()
-        }
-        document.addEventListener('mousedown', handler)
-        return () => document.removeEventListener('mousedown', handler)
-        // FIX 4: same as ProfileDropdown — onClose must be stable at the call site
-    }, [onClose])
-
-    const typeColor: Record<NotificationType, string> = {
-        info: 'bg-blue-100 text-blue-600',
-        assignment: 'bg-amber-100 text-amber-600',
-        grade: 'bg-emerald-100 text-emerald-600',
-    }
-
-    return (
-        <div
-            ref={ref}
-            className="absolute right-0 top-full z-50 mt-3 w-80 overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-2xl shadow-slate-200/80"
-            style={{ animation: 'dropdownIn 0.18s ease' }}
-        >
-            <div className="flex items-center justify-between border-b border-slate-100 px-4 py-3">
-                <p className="font-semibold text-slate-900">Notifications</p>
-                <span className="rounded-full bg-blue-600 px-2 py-0.5 text-[10px] font-bold text-white">
-					{notifications.filter((n) => !n.read).length} new
-				</span>
-            </div>
-            <div className="max-h-72 overflow-y-auto">
-                {notifications.length === 0 && (
-                    <p className="py-8 text-center text-sm text-slate-400">No notifications</p>
-                )}
-                {notifications.map((n) => (
-                    <div
-                        key={n.id}
-                        className={`flex gap-3 border-b border-slate-50 px-4 py-3 ${!n.read ? 'bg-blue-50/40' : ''}`}
-                    >
-						<span
-                            className={`mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-xl text-xs ${
-                                typeColor[n.type] ?? 'bg-slate-100 text-slate-500'
-                            }`}
-                        >
-							<FaBell />
-						</span>
-                        <div>
-                            <p className="text-sm text-slate-700">{n.message}</p>
-                            <p className="mt-0.5 text-xs text-slate-400">{n.time}</p>
-                        </div>
-                    </div>
-                ))}
-            </div>
-            <div className="border-t border-slate-100 p-2">
-                <button
-                    type="button"
-                    onClick={() => {
-                        onViewAll()
-                        onClose()
-                    }}
-                    className="block w-full rounded-2xl px-3 py-2 text-center text-sm font-semibold text-blue-600 transition hover:bg-blue-50"
-                >
-                    View all notifications
-                </button>
-            </div>
-        </div>
-    )
-}
 
 function StatusBadge({ status }: { status: AssignmentStatus }) {
     const map: Record<AssignmentStatus, string> = {
@@ -708,15 +519,11 @@ function DashboardIllustration() {
 // ─── Main Dashboard ───────────────────────────────────────────────────────────
 
 export default function Dashboard() {
-    const { data, loading, error, refetch, lastRefreshed } = useDashboardData()
-    const [showProfile, setShowProfile] = useState(false)
-    const [showNotifications, setShowNotifications] = useState(false)
-    const [showAllNotifications, setShowAllNotifications] = useState(false)
+    const { data, loading, error, refetch } = useDashboardData()
 
-    const { profile, metrics, lectures, assignments, notifications, achievements, gpa } = data
+    const { profile, metrics, lectures, assignments, achievements, gpa } = data
 
     const progress = metrics ? Math.round((metrics.credits / metrics.totalCredits) * 100) : 0
-    const unreadCount = notifications.filter((n) => !n.read).length
     const nextLecture = lectures.find((l) => l.isNext)
 
     const metricCards: { label: string; value: number; helper: string; icon: ReactNode; tone: string }[] = metrics
@@ -740,127 +547,14 @@ export default function Dashboard() {
         ]
         : []
 
-    const handleLogout = () => {
-        localStorage.removeItem('smart-campus-authenticated')
-        localStorage.removeItem('smart-campus-user-email')
-        localStorage.removeItem('smart-campus-token')
-        localStorage.removeItem('token')
-        localStorage.removeItem('data')
-        window.location.href = '/login'
-    }
 
-    // FIX 6: stable callbacks so ProfileDropdown / NotificationsPanel
-    // don't re-register their mousedown listeners on every render
-    const closeProfile = useCallback(() => setShowProfile(false), [])
-    const closeNotifications = useCallback(() => setShowNotifications(false), [])
-    const closeAllNotifications = useCallback(() => setShowAllNotifications(false), [])
-    const openAllNotifications = useCallback(() => {
-        setShowAllNotifications(true)
-        setShowProfile(false)
-        setShowNotifications(false)
-    }, [])
 
     return (
         // FIX 7: add `relative` so the absolute gradient bg-div is clipped to this element
         <main className="relative min-h-screen bg-slate-50 text-slate-900">
             <div className="absolute inset-x-0 top-0 -z-10 h-80 bg-gradient-to-b from-blue-100/70 via-sky-50/40 to-transparent" />
-            <Navbar notificationCount={unreadCount} />
-            {/* ── Header ──────────────────────────────────────────────────────── */}
-            <header className="sticky top-0 z-30 border-b border-slate-200/80 bg-white/90 backdrop-blur-xl">
-                <div className="mx-auto flex max-w-7xl items-center justify-between gap-4 px-4 py-3 lg:px-8">
-                    <a href="/dashboard" className="flex items-center gap-3">
-						<span className="flex h-11 w-11 items-center justify-center rounded-2xl bg-gradient-to-br from-blue-600 to-sky-500 text-white shadow-lg shadow-blue-200">
-							<FaWifi className="text-lg" />
-						</span>
-                        <span>
-							<span className="block text-[10px] font-bold uppercase tracking-[0.26em] text-blue-600">Smart Campus</span>
-							<span className="block text-sm font-semibold leading-tight text-slate-900">Student Portal</span>
-						</span>
-                    </a>
 
-                    <div className="flex items-center gap-2">
-                        {/* Refresh */}
-                        <button
-                            onClick={refetch}
-                            className="hidden h-10 w-10 items-center justify-center rounded-2xl border border-slate-200 text-slate-500 transition hover:border-blue-200 hover:bg-blue-50 hover:text-blue-600 sm:flex"
-                            title={lastRefreshed ? `Last updated ${lastRefreshed.toLocaleTimeString()}` : 'Refresh'}
-                        >
-                            <FaSyncAlt className={loading ? 'animate-spin' : ''} />
-                        </button>
 
-                        {/* Timetable */}
-                        <a
-                            href="/timetable"
-                            className="flex h-10 w-10 items-center justify-center rounded-2xl border border-slate-200 text-slate-600 transition hover:border-blue-200 hover:bg-blue-50 hover:text-blue-600"
-                            title="View timetable"
-                        >
-                            <FaBookOpen />
-                        </a>
-
-                        {/* Notes */}
-                        <a
-                            href="/notes"
-                            className="flex h-10 w-10 items-center justify-center rounded-2xl border border-slate-200 text-slate-600 transition hover:border-blue-200 hover:bg-blue-50 hover:text-blue-600"
-                            title="Document notes"
-                        >
-                            <FaPenNib />
-                        </a>
-
-                        {/* Notifications */}
-                        <div className="relative">
-                            <button
-                                onClick={() => {
-                                    setShowNotifications((v) => !v)
-                                    setShowProfile(false)
-                                    setShowAllNotifications(false)
-                                }}
-                                className="relative flex h-10 w-10 items-center justify-center rounded-2xl border border-slate-200 text-slate-600 transition hover:border-blue-200 hover:bg-blue-50 hover:text-blue-600"
-                            >
-                                <FaBell />
-                                {unreadCount > 0 && (
-                                    <span className="absolute right-2 top-2 flex h-4 w-4 items-center justify-center rounded-full border-2 border-white bg-rose-500 text-[8px] font-bold text-white">
-										{unreadCount}
-									</span>
-                                )}
-                            </button>
-                            {showNotifications && (
-                                <NotificationsPanel
-                                    notifications={notifications}
-                                    onClose={closeNotifications}
-                                    onViewAll={openAllNotifications}
-                                />
-                            )}
-                        </div>
-
-                        {/* Avatar / Profile */}
-                        <div className="relative">
-                            <button
-                                onClick={() => {
-                                    setShowProfile((v) => !v)
-                                    setShowNotifications(false)
-                                    setShowAllNotifications(false)
-                                }}
-                                className="flex items-center gap-2 rounded-2xl border border-slate-200 bg-white p-1 pr-3 transition hover:border-blue-200 hover:shadow-md"
-                            >
-                                <Avatar name={profile?.name} avatarUrl={profile?.avatarUrl} size="sm" />
-                                <span className="hidden max-w-[110px] truncate text-sm font-semibold text-slate-800 sm:block">
-									{profile?.name?.split(' ')[0] ?? 'Student'}
-								</span>
-                                <FaChevronRight
-                                    className={`text-[10px] text-slate-400 transition-transform ${showProfile ? 'rotate-90' : ''}`}
-                                />
-                            </button>
-                            {showProfile && (
-                                <ProfileDropdown
-                                    profile={profile}
-                                    onClose={closeProfile}
-                                    onLogout={handleLogout}
-                                />
-                            )}
-                        </div>
-                    </div>
-                </div>
-            </header>
 
             {/* ── Error Banner ─────────────────────────────────────────────────── */}
             {error && (
@@ -1091,11 +785,6 @@ export default function Dashboard() {
 
             </div>
 
-            <NotificationsDrawer
-                open={showAllNotifications}
-                onClose={closeAllNotifications}
-                notifications={notifications}
-            />
             <BottomNavigation />
         </main>
     )
