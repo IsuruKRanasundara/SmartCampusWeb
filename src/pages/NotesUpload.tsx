@@ -156,7 +156,7 @@ export default function NotesUpload() {
                             href="/my-notes"
                             className="inline-flex h-10 items-center gap-2 rounded-2xl border border-slate-200 px-4 text-sm font-medium text-slate-600 transition hover:border-blue-200 hover:bg-blue-50 hover:text-blue-600"
                         >
-                            My notes
+                            Notes
                         </a>
                         <a
                             href="/dashboard"

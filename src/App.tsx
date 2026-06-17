@@ -17,10 +17,22 @@ import { UserProvider } from './context/UserContext'
 import Navbar from './components/layout/Navbar'
 import BottomNavigation from './components/layout/BottomNavigation'
 
-// Pages that render WITHOUT the shell (no nav bars)
 const NO_SHELL_PATHS = ['/', '/login', '/signup']
 
-// Pages that are protected (require auth)
+// Pages that manage their own full-screen layout (own header etc.)
+const SELF_MANAGED_PATHS = [
+    '/assistant',
+    '/courses',
+    '/announcements',
+    '/events',
+    '/facilities',
+    '/timetable',
+    '/my-notes',
+    '/notes',
+    '/assignments',
+    '/profile',
+]
+
 const PROTECTED_PATHS = [
     '/dashboard',
     '/notes',
@@ -36,73 +48,56 @@ const PROTECTED_PATHS = [
 ]
 
 /**
- * AppShell — wraps every authenticated page with:
- *   • Navbar      (sticky top, desktop only — hidden on mobile via lg: classes inside Navbar)
- *   • <main>      (scrollable content, padded so it never hides under either nav bar)
- *   • BottomNavigation (fixed bottom, mobile only — hidden on desktop via lg: classes inside BottomNavigation)
+ * AppShell — wraps authenticated pages with top Navbar + bottom nav padding.
+ * Self-managed pages (those with their own sticky header) skip the top Navbar
+ * but still get the bottom padding so content isn't hidden under the mobile nav.
  */
-function AppShell({ children }: { children: React.ReactNode }) {
+function AppShell({ children, path }: { children: React.ReactNode; path: string }) {
+    const isSelfManaged = SELF_MANAGED_PATHS.includes(path)
+
+    if (isSelfManaged) {
+        // These pages have their own header — just add bottom padding for mobile nav
+        return (
+            <div className="flex min-h-screen flex-col">
+                {children}
+                <BottomNavigation />
+            </div>
+        )
+    }
+
     return (
         <div className="flex min-h-screen flex-col bg-slate-50">
-            {/* ① Sticky top navbar — renders nothing on mobile (<lg) internally */}
             <Navbar />
-
             {/*
-             * ② Scrollable main content area
-             *
-             * pb-[5.5rem]  — on mobile, pushes content above the fixed bottom nav
-             *                (the nav is ~4.5 rem tall; 5.5 gives a comfortable gap)
-             * lg:pb-6      — on desktop there's no bottom nav, so normal padding
-             */}
-            <main className="mx-auto w-full max-w-7xl flex-1 px-4 py-6 pb-[5.5rem] sm:px-6 lg:pb-6 xl:px-8">
+              * pb-20 on mobile gives clearance above the fixed bottom nav (~72px + safe area).
+              * lg:pb-8 resets this on desktop where there's no bottom nav.
+              */}
+            <main className="mx-auto w-full max-w-7xl flex-1 px-4 py-6 pb-24 sm:px-6 lg:pb-8 xl:px-8">
                 {children}
             </main>
-
-            {/* ③ Fixed bottom nav — renders nothing on desktop (lg:hidden) internally */}
             <BottomNavigation />
         </div>
     )
 }
 
-/** Resolves the current page component from window.location.pathname */
 function PageContent({ path }: { path: string }) {
     switch (path) {
-        case '/dashboard':
-            return (
-                <>
-                    <Dashboard />
-                    {/* QuickNav is part of the Dashboard page but placed here
-                        so it always appears beneath the dashboard content.
-                        If Dashboard already renders QuickNav internally, remove this. */}
-                </>
-            )
-        case '/notes':
-            return <NotesUpload />
-        case '/my-notes':
-            return <MyNotes />
-        case '/timetable':
-            return <Timetable />
-        case '/assignments':
-            return <Assignments />
-        case '/profile':
-            return <Profile />
-        case '/announcements':
-            return <Announcements />
-        case '/events':
-            return <Events />
-        case '/facilities':
-            return <Facilities />
-        case '/assistant':
-            return <Assistant />
-        case '/courses':
-            return <Courses />
-        default:
-            return <Home />
+        case '/dashboard': return <Dashboard />
+        case '/notes': return <NotesUpload />
+        case '/my-notes': return <MyNotes />
+        case '/timetable': return <Timetable />
+        case '/assignments': return <Assignments />
+        case '/profile': return <Profile />
+        case '/announcements': return <Announcements />
+        case '/events': return <Events />
+        case '/facilities': return <Facilities />
+        case '/assistant': return <Assistant />
+        case '/courses': return <Courses />
+        default: return <Home />
     }
 }
 
 function Router() {
-    // Track path in state so back/forward navigation re-renders the app
     const [path, setPath] = useState(window.location.pathname)
 
     useEffect(() => {
@@ -113,37 +108,30 @@ function Router() {
 
     const isAuthenticated = window.localStorage.getItem('smart-campus-authenticated') === 'true'
 
-    // Redirect unauthenticated users away from protected pages
     if (!isAuthenticated && PROTECTED_PATHS.includes(path)) {
         window.history.replaceState(null, '', '/login')
         return <Login />
     }
 
-    // Redirect authenticated users away from auth pages
     if (isAuthenticated && (path === '/login' || path === '/signup')) {
         window.history.replaceState(null, '', '/dashboard')
         return (
-            <AppShell>
+            <AppShell path="/dashboard">
                 <PageContent path="/dashboard" />
             </AppShell>
         )
     }
 
-    // Public / auth pages — rendered WITHOUT the shell
     if (NO_SHELL_PATHS.includes(path)) {
         switch (path) {
-            case '/login':
-                return <Login />
-            case '/signup':
-                return <SignUp />
-            default:
-                return <Home />
+            case '/login': return <Login />
+            case '/signup': return <SignUp />
+            default: return <Home />
         }
     }
 
-    // All other (protected) pages — wrapped in the shell
     return (
-        <AppShell>
+        <AppShell path={path}>
             <PageContent path={path} />
         </AppShell>
     )

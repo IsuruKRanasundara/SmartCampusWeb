@@ -1,7 +1,6 @@
 import { useState, useEffect, useCallback } from 'react'
 import type { ReactNode } from 'react'
 import {
-
     FaBookOpen,
     FaCalendarAlt,
     FaChartLine,
@@ -13,12 +12,9 @@ import {
     FaPenNib,
     FaRegCalendarCheck,
     FaExclamationCircle,
-    FaTrophy
-
-    // FaFire — removed (imported but never used)
+    FaTrophy,
 } from 'react-icons/fa'
-import BottomNavigation from "../components/layout/BottomNavigation.tsx";
-import QuickNav from "../components/layout/QuickNav.tsx";
+import QuickNav from '../components/layout/QuickNav'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -95,9 +91,7 @@ interface DashboardData {
     gpa: Gpa | null
 }
 
-
-
-// ─── API response shapes (Smart Campus Backend) ───────────────────────────────
+// ─── API response shapes ───────────────────────────────────────────────────────
 
 interface ApiProfile {
     id: number
@@ -138,7 +132,6 @@ const GRADE_POINTS: Record<string, number> = {
     D: 1.0, F: 0,
 }
 
-// ─── API Configuration ────────────────────────────────────────────────────────
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'https://smart-campus-web-api.vercel.app'
 
 const api = {
@@ -146,312 +139,174 @@ const api = {
         'Content-Type': 'application/json',
         Authorization: `Bearer ${localStorage.getItem('token') || localStorage.getItem('smart-campus-token') || ''}`,
     }),
-
     async get<T>(endpoint: string): Promise<T> {
-        const res = await fetch(`${API_BASE_URL}${endpoint}`, {
-            method: 'GET',
-            headers: api.headers(),
-        })
-        if (!res.ok) throw new Error(`API error ${res.status}: ${res.statusText}`)
+        const res = await fetch(`${API_BASE_URL}${endpoint}`, { method: 'GET', headers: api.headers() })
+        if (!res.ok) throw new Error(`API error ${res.status}`)
         return res.json() as Promise<T>
     },
 }
 
-// ─── API → Dashboard mappers ──────────────────────────────────────────────────
+// ─── Mappers ──────────────────────────────────────────────────────────────────
 
-function parseTimeRange(time: string): { startTime: string; endTime: string } {
-    const [startTime = '—', endTime = '—'] = time.split(/\s*-\s*/)
-    return { startTime: startTime.trim(), endTime: endTime.trim() }
+function parseTimeRange(time: string) {
+    const [s = '—', e = '—'] = time.split(/\s*-\s*/)
+    return { startTime: s.trim(), endTime: e.trim() }
 }
 
 function parseTimeToMinutes(time: string): number {
     const match = time.match(/(\d{1,2}):(\d{2})\s*(AM|PM)?/i)
     if (!match) return 0
-    let hours = parseInt(match[1], 10)
-    const minutes = parseInt(match[2], 10)
-    const period = match[3]?.toUpperCase()
-    if (period === 'PM' && hours !== 12) hours += 12
-    if (period === 'AM' && hours === 12) hours = 0
-    return hours * 60 + minutes
+    let h = parseInt(match[1], 10)
+    const m = parseInt(match[2], 10)
+    const p = match[3]?.toUpperCase()
+    if (p === 'PM' && h !== 12) h += 12
+    if (p === 'AM' && h === 12) h = 0
+    return h * 60 + m
 }
 
 function findNextLectureIndex(entries: ApiTimetableEntry[]): number {
-    const nowMinutes = new Date().getHours() * 60 + new Date().getMinutes()
-    let nextIdx = -1
-    let nextStart = Infinity
-    entries.forEach((entry, i) => {
-        const { startTime } = parseTimeRange(entry.time)
+    const now = new Date().getHours() * 60 + new Date().getMinutes()
+    let nextIdx = -1, nextStart = Infinity
+    entries.forEach((e, i) => {
+        const { startTime } = parseTimeRange(e.time)
         const mins = parseTimeToMinutes(startTime)
-        if (mins >= nowMinutes && mins < nextStart) {
-            nextStart = mins
-            nextIdx = i
-        }
+        if (mins >= now && mins < nextStart) { nextStart = mins; nextIdx = i }
     })
     return nextIdx >= 0 ? nextIdx : 0
 }
 
-function mapProfile(apiProfile: ApiProfile): Profile {
-    const storedEmail = localStorage.getItem('smart-campus-user-email') ?? ''
-    let studentId = String(apiProfile.id)
-    try {
-        const storedData = localStorage.getItem('data')
-        if (storedData) {
-            const parsed = JSON.parse(storedData) as { user?: { id?: string } }
-            if (parsed.user?.id) studentId = parsed.user.id
-        }
-    } catch {
-        // ignore malformed stored login payload
-    }
+function mapProfile(p: ApiProfile): Profile {
     return {
-        name: apiProfile.name,
-        email: storedEmail,
-        studentId,
+        name: p.name,
+        email: localStorage.getItem('smart-campus-user-email') ?? '',
+        studentId: String(p.id),
         avatarUrl: null,
-        faculty: apiProfile.faculty,
-        year: apiProfile.degree,
+        faculty: p.faculty,
+        year: p.degree,
     }
 }
 
-function buildMetrics(
-    apiProfile: ApiProfile,
-    timetable: ApiTimetableEntry[],
-    assignments: ApiAssignment[],
-): Metrics {
-    const now = Date.now()
-    const weekMs = 7 * 24 * 60 * 60 * 1000
-    const pending = assignments.filter((a) => a.status.toLowerCase() !== 'completed').length
-    const completed = assignments.filter((a) => a.status.toLowerCase() === 'completed').length
-    const dueThisWeek = assignments.filter((a) => {
-        const due = new Date(a.dueDate).getTime()
-        return a.status.toLowerCase() !== 'completed' && due >= now && due - now <= weekMs
-    }).length
+function buildMetrics(p: ApiProfile, tt: ApiTimetableEntry[], aa: ApiAssignment[]): Metrics {
+    const now = Date.now(), weekMs = 7 * 86400000
     return {
-        todayLectures: timetable.length,
-        pendingAssignments: pending,
-        completedAssignments: completed,
-        dueThisWeek,
-        credits: apiProfile.completedCredits,
-        totalCredits: apiProfile.totalCredits,
+        todayLectures: tt.length,
+        pendingAssignments: aa.filter(a => a.status.toLowerCase() !== 'completed').length,
+        completedAssignments: aa.filter(a => a.status.toLowerCase() === 'completed').length,
+        dueThisWeek: aa.filter(a => {
+            const due = new Date(a.dueDate).getTime()
+            return a.status.toLowerCase() !== 'completed' && due >= now && due - now <= weekMs
+        }).length,
+        credits: p.completedCredits,
+        totalCredits: p.totalCredits,
     }
 }
 
 function mapTimetable(entries: ApiTimetableEntry[]): DashboardLecture[] {
     const nextIdx = findNextLectureIndex(entries)
-    return entries.map((entry, i) => {
-        const { startTime, endTime } = parseTimeRange(entry.time)
-        return {
-            id: i + 1,
-            title: entry.course,
-            lecturer: 'Faculty',
-            startTime,
-            endTime,
-            room: entry.hall,
-            building: entry.hall,
-            isNext: i === nextIdx,
-        }
+    return entries.map((e, i) => {
+        const { startTime, endTime } = parseTimeRange(e.time)
+        return { id: i + 1, title: e.course, lecturer: 'Faculty', startTime, endTime, room: e.hall, building: e.hall, isNext: i === nextIdx }
     })
 }
 
-function mapAssignmentStatus(status: string): AssignmentStatus {
-    const normalized = status.toLowerCase()
-    if (normalized === 'completed') return 'Submitted'
-    if (normalized === 'pending') return 'In Progress'
-    if (normalized === 'draft') return 'Draft'
-    if (normalized === 'review') return 'Review'
+function mapAssignmentStatus(s: string): AssignmentStatus {
+    const n = s.toLowerCase()
+    if (n === 'completed') return 'Submitted'
+    if (n === 'pending') return 'In Progress'
+    if (n === 'draft') return 'Draft'
+    if (n === 'review') return 'Review'
     return 'Not Started'
 }
 
 function assignmentPriority(dueDate: string): AssignmentPriority {
-    const days = (new Date(dueDate).getTime() - Date.now()) / (1000 * 60 * 60 * 24)
-    if (days <= 3) return 'high'
-    if (days <= 7) return 'medium'
-    return 'low'
+    const days = (new Date(dueDate).getTime() - Date.now()) / 86400000
+    return days <= 3 ? 'high' : days <= 7 ? 'medium' : 'low'
 }
 
-function mapAssignments(assignments: ApiAssignment[]): DashboardAssignment[] {
-    return assignments.map((a) => ({
-        id: a.id,
-        title: a.title,
-        course: 'Coursework',
-        dueDate: a.dueDate,
-        status: mapAssignmentStatus(a.status),
-        priority: assignmentPriority(a.dueDate),
-    }))
-}
-
-function inferNotificationType(message: string): NotificationType {
-    const lower = message.toLowerCase()
-    if (lower.includes('assignment') || lower.includes('deadline')) return 'assignment'
-    if (lower.includes('grade') || lower.includes('quiz') || lower.includes('result')) return 'grade'
-    return 'info'
-}
-
-function mapNotifications(notifications: ApiNotification[]): Notification[] {
-    return notifications.map((n) => ({
-        id: n.id,
-        message: n.message,
-        type: inferNotificationType(n.message),
-        time: 'Recently',
-        read: false,
-    }))
-}
-
-function gradeToPoints(grade: string): number {
-    return GRADE_POINTS[grade.trim().toUpperCase()] ?? 0
+function mapAssignments(aa: ApiAssignment[]): DashboardAssignment[] {
+    return aa.map(a => ({ id: a.id, title: a.title, course: 'Coursework', dueDate: a.dueDate, status: mapAssignmentStatus(a.status), priority: assignmentPriority(a.dueDate) }))
 }
 
 function computeGpa(results: ApiResult[]): Gpa | null {
-    if (results.length === 0) return null
-    const points = results.map((r) => gradeToPoints(r.grade))
-    const current = points.reduce((sum, p) => sum + p, 0) / points.length
-    return {
-        current,
-        previous: Math.max(0, current - 0.14),
-        target: 4.0,
-    }
+    if (!results.length) return null
+    const pts = results.map(r => GRADE_POINTS[r.grade.trim().toUpperCase()] ?? 0)
+    const current = pts.reduce((s, p) => s + p, 0) / pts.length
+    return { current, previous: Math.max(0, current - 0.14), target: 4.0 }
 }
 
 function mapResultsToAchievements(results: ApiResult[]): Achievement[] {
-    return results.map((r, i) => ({
-        id: i + 1,
-        title: r.course,
-        earnedAt: `Grade ${r.grade}`,
-    }))
+    return results.map((r, i) => ({ id: i + 1, title: r.course, earnedAt: `Grade ${r.grade}` }))
 }
 
-// ─── Data Fetching ────────────────────────────────────────────────────────────
+// ─── Fallback ─────────────────────────────────────────────────────────────────
 
-// Offline fallback when the API is unreachable
-const FALLBACK_DASHBOARD_DATA: DashboardData = {
-    profile: {
-        name: 'Asel Wijesinghe',
-        email: 'asel.w@campus.edu',
-        studentId: 'CS21-0047',
-        avatarUrl: null,
-        faculty: 'Faculty of Computing',
-        year: '3rd Year',
-    },
-    metrics: {
-        todayLectures: 4,
-        pendingAssignments: 7,
-        completedAssignments: 18,
-        dueThisWeek: 2,
-        credits: 72,
-        totalCredits: 120,
-    },
+const FALLBACK: DashboardData = {
+    profile: { name: 'Student', email: '', studentId: '—', avatarUrl: null, faculty: 'Faculty of Computing', year: '3rd Year' },
+    metrics: { todayLectures: 3, pendingAssignments: 5, completedAssignments: 12, dueThisWeek: 2, credits: 72, totalCredits: 120 },
     lectures: [
-        { id: 1, title: 'Advanced Software Engineering', lecturer: 'Dr. Amaya Perera', startTime: '09:00', endTime: '10:30', room: 'Room 204', building: 'Block B', isNext: true },
-        { id: 2, title: 'Database Systems', lecturer: 'Prof. R. Silva', startTime: '11:00', endTime: '12:30', room: 'Lecture Hall 3', building: 'Main Block', isNext: false },
-        { id: 3, title: 'Human Computer Interaction', lecturer: 'Ms. N. Fernando', startTime: '14:00', endTime: '15:30', room: 'Design Studio 1', building: 'Block C', isNext: false },
+        { id: 1, title: 'Advanced Software Engineering', lecturer: 'Dr. Perera', startTime: '09:00', endTime: '10:30', room: 'Room 204', building: 'Block B', isNext: true },
+        { id: 2, title: 'Database Systems', lecturer: 'Prof. Silva', startTime: '11:00', endTime: '12:30', room: 'Lecture Hall 3', building: 'Main Block', isNext: false },
     ],
     assignments: [
-        { id: 1, title: 'Mobile UI Prototype', course: 'HCI', dueDate: '2025-01-20T23:59', status: 'In Progress', priority: 'high' },
-        { id: 2, title: 'Database Report', course: 'DBS', dueDate: '2025-01-24T16:30', status: 'Draft', priority: 'medium' },
-        { id: 3, title: 'AI Seminar Reflection', course: 'AI', dueDate: '2025-01-26T20:00', status: 'Review', priority: 'low' },
-        { id: 4, title: 'Network Security Lab', course: 'NET', dueDate: '2025-01-28T17:00', status: 'Not Started', priority: 'medium' },
+        { id: 1, title: 'Mobile UI Prototype', course: 'HCI', dueDate: new Date(Date.now() + 2 * 86400000).toISOString(), status: 'In Progress', priority: 'high' },
+        { id: 2, title: 'Database Report', course: 'DBS', dueDate: new Date(Date.now() + 5 * 86400000).toISOString(), status: 'Draft', priority: 'medium' },
+        { id: 3, title: 'Network Security Lab', course: 'NET', dueDate: new Date(Date.now() + 8 * 86400000).toISOString(), status: 'Not Started', priority: 'low' },
     ],
     notifications: [
-        { id: 1, message: 'ASE lecture moved to Room 301 tomorrow', type: 'info', time: '10m ago', read: false },
-        { id: 2, message: 'New assignment posted: Cloud Architecture', type: 'assignment', time: '1h ago', read: false },
-        { id: 3, message: 'Your Database Report was graded: B+', type: 'grade', time: '3h ago', read: true },
+        { id: 1, message: 'Lecture moved to Room 301 tomorrow', type: 'info', time: '10m ago', read: false },
+        { id: 2, message: 'New assignment: Cloud Architecture', type: 'assignment', time: '1h ago', read: false },
     ],
-    achievements: [
-        { id: 1, title: "Dean's List", earnedAt: 'Sem 2 2024' },
-        { id: 2, title: '7-Day Streak', earnedAt: 'This week' },
-        { id: 3, title: 'Top Contributor', earnedAt: 'Jan 2025' },
-    ],
+    achievements: [{ id: 1, title: "Dean's List", earnedAt: 'Sem 2 2024' }],
     gpa: { current: 3.72, previous: 3.58, target: 3.80 },
 }
 
-async function fetchDashboardFromApi(): Promise<DashboardData> {
-    const [apiProfile, timetable, apiAssignments, apiNotifications, results] =
-        await Promise.all([
-            api.get<ApiProfile>('/api/users/profile'),
-            api.get<ApiTimetableEntry[]>('/api/timetable/today'),
-            api.get<ApiAssignment[]>('/api/assignments'),
-            api.get<ApiNotification[]>('/api/notifications'),
-            api.get<ApiResult[]>('/api/results'),
-        ])
-
-    const profile = mapProfile(apiProfile)
-    const metrics = buildMetrics(apiProfile, timetable, apiAssignments)
-    const lectures = mapTimetable(timetable)
-    const assignments = mapAssignments(apiAssignments)
-    const notifications = mapNotifications(apiNotifications)
-    const achievements = mapResultsToAchievements(results)
-    const gpa = computeGpa(results)
-
-    return { profile, metrics, lectures, assignments, notifications, achievements, gpa }
+async function fetchDashboard(): Promise<DashboardData> {
+    const [profile, timetable, assignments, notifications, results] = await Promise.all([
+        api.get<ApiProfile>('/api/users/profile'),
+        api.get<ApiTimetableEntry[]>('/api/timetable/today'),
+        api.get<ApiAssignment[]>('/api/assignments'),
+        api.get<ApiNotification[]>('/api/notifications'),
+        api.get<ApiResult[]>('/api/results'),
+    ])
+    return {
+        profile: mapProfile(profile),
+        metrics: buildMetrics(profile, timetable, assignments),
+        lectures: mapTimetable(timetable),
+        assignments: mapAssignments(assignments),
+        notifications: notifications.map(n => ({ id: n.id, message: n.message, type: 'info' as NotificationType, time: 'Recently', read: false })),
+        achievements: mapResultsToAchievements(results),
+        gpa: computeGpa(results),
+    }
 }
 
 function useDashboardData() {
-    const [data, setData] = useState<DashboardData>({
-        profile: null,
-        metrics: null,
-        lectures: [],
-        assignments: [],
-        notifications: [],
-        achievements: [],
-        gpa: null,
-    })
+    const [data, setData] = useState<DashboardData>({ profile: null, metrics: null, lectures: [], assignments: [], notifications: [], achievements: [], gpa: null })
     const [loading, setLoading] = useState(true)
     const [error, setError] = useState<string | null>(null)
-    const [lastRefreshed, setLastRefreshed] = useState<Date | null>(null)
 
     const fetchAll = useCallback(async () => {
         setLoading(true)
         setError(null)
         try {
-            const result = await fetchDashboardFromApi()
-            setData(result)
-            setLastRefreshed(new Date())
+            setData(await fetchDashboard())
         } catch (err) {
-            console.error('Dashboard fetch error:', err)
-            setError(err instanceof Error ? err.message : 'Failed to load dashboard data')
-            setData(FALLBACK_DASHBOARD_DATA)
+            setError(err instanceof Error ? err.message : 'Failed to load')
+            setData(FALLBACK)
         } finally {
             setLoading(false)
         }
     }, [])
 
     useEffect(() => {
-        let cancelled = false
-
-        fetchDashboardFromApi()
-            .then((result) => {
-                if (cancelled) return
-                setData(result)
-                setLastRefreshed(new Date())
-            })
-            .catch((err: unknown) => {
-                if (cancelled) return
-                console.error('Dashboard fetch error:', err)
-                setError(err instanceof Error ? err.message : 'Failed to load dashboard data')
-                setData(FALLBACK_DASHBOARD_DATA)
-            })
-            .finally(() => {
-                if (!cancelled) setLoading(false)
-            })
-
-        const interval = setInterval(() => {
-            void fetchAll()
-        }, 5 * 60 * 1000)
-
-        return () => {
-            cancelled = true
-            clearInterval(interval)
-        }
+        void fetchAll()
+        const id = setInterval(() => void fetchAll(), 5 * 60 * 1000)
+        return () => clearInterval(id)
     }, [fetchAll])
 
-    return { data, loading, error, refetch: fetchAll, lastRefreshed }
+    return { data, loading, error, refetch: fetchAll }
 }
 
 // ─── Sub-components ───────────────────────────────────────────────────────────
-
-
-
-
-
 
 function StatusBadge({ status }: { status: AssignmentStatus }) {
     const map: Record<AssignmentStatus, string> = {
@@ -462,19 +317,15 @@ function StatusBadge({ status }: { status: AssignmentStatus }) {
         Submitted: 'bg-emerald-50 text-emerald-700 ring-emerald-100',
     }
     return (
-        <span
-            className={`shrink-0 rounded-full px-3 py-1 text-xs font-semibold ring-1 ${
-                map[status] ?? 'bg-slate-50 text-slate-600 ring-slate-200'
-            }`}
-        >
-			{status}
-		</span>
+        <span className={`shrink-0 rounded-full px-2.5 py-1 text-xs font-semibold ring-1 ${map[status] ?? 'bg-slate-50 text-slate-600 ring-slate-200'}`}>
+            {status}
+        </span>
     )
 }
 
 function PriorityDot({ priority }: { priority: AssignmentPriority }) {
     const map: Record<AssignmentPriority, string> = { high: 'bg-rose-500', medium: 'bg-amber-400', low: 'bg-emerald-400' }
-    return <span className={`mt-1 h-2 w-2 shrink-0 rounded-full ${map[priority] ?? 'bg-slate-300'}`} />
+    return <span className={`mt-1.5 h-2 w-2 shrink-0 rounded-full ${map[priority]}`} />
 }
 
 function SkeletonCard() {
@@ -487,20 +338,13 @@ function SkeletonCard() {
     )
 }
 
-// FIX 5: helper for due date — use toLocaleString (not toLocaleDateString) so
-// hour/minute options are honoured correctly
-function formatDueDate(isoString: string) {
-    return new Date(isoString).toLocaleString('en-GB', {
-        day: 'numeric',
-        month: 'short',
-        hour: '2-digit',
-        minute: '2-digit',
-    })
+function formatDueDate(iso: string) {
+    return new Date(iso).toLocaleString('en-GB', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })
 }
 
 function DashboardIllustration() {
     return (
-        <svg viewBox="0 0 360 260" className="h-full w-full" role="img" aria-label="Student dashboard illustration">
+        <svg viewBox="0 0 360 260" className="h-full w-full" role="img" aria-label="Dashboard illustration">
             <rect width="360" height="260" rx="28" fill="rgba(255,255,255,0.08)" />
             <rect x="34" y="38" width="292" height="184" rx="24" fill="rgba(255,255,255,0.12)" />
             <rect x="56" y="64" width="116" height="14" rx="7" fill="rgba(255,255,255,0.6)" />
@@ -520,128 +364,93 @@ function DashboardIllustration() {
 
 export default function Dashboard() {
     const { data, loading, error, refetch } = useDashboardData()
-
     const { profile, metrics, lectures, assignments, achievements, gpa } = data
 
     const progress = metrics ? Math.round((metrics.credits / metrics.totalCredits) * 100) : 0
-    const nextLecture = lectures.find((l) => l.isNext)
+    const nextLecture = lectures.find(l => l.isNext)
 
-    const metricCards: { label: string; value: number; helper: string; icon: ReactNode; tone: string }[] = metrics
-        ? [
-            {
-                label: 'Today Lectures',
-                value: metrics.todayLectures,
-                helper: nextLecture ? `Next at ${nextLecture.startTime}` : 'No more lectures today',
-                icon: <FaCalendarAlt />,
-                tone: 'bg-blue-50 text-blue-700 ring-blue-100',
-            },
-            {
-                label: 'Assignments',
-                value: metrics.pendingAssignments,
-                helper: metrics.dueThisWeek === 1 ? '1 due this week' : `${metrics.dueThisWeek} due this week`,
-                icon: <FaClipboardList />,
-                tone: 'bg-amber-50 text-amber-700 ring-amber-100',
-            },
-            { label: 'Completed', value: metrics.completedAssignments, helper: 'Submitted coursework', icon: <FaCheckCircle />, tone: 'bg-emerald-50 text-emerald-700 ring-emerald-100' },
-            { label: 'Credits', value: metrics.credits, helper: `${metrics.totalCredits - metrics.credits} remaining`, icon: <FaGraduationCap />, tone: 'bg-indigo-50 text-indigo-700 ring-indigo-100' },
-        ]
-        : []
-
-
+    const metricCards: { label: string; value: number; helper: string; icon: ReactNode; tone: string }[] = metrics ? [
+        { label: 'Today\'s Lectures', value: metrics.todayLectures, helper: nextLecture ? `Next at ${nextLecture.startTime}` : 'No more today', icon: <FaCalendarAlt />, tone: 'bg-blue-50 text-blue-700 ring-blue-100' },
+        { label: 'Assignments', value: metrics.pendingAssignments, helper: `${metrics.dueThisWeek} due this week`, icon: <FaClipboardList />, tone: 'bg-amber-50 text-amber-700 ring-amber-100' },
+        { label: 'Completed', value: metrics.completedAssignments, helper: 'Submitted coursework', icon: <FaCheckCircle />, tone: 'bg-emerald-50 text-emerald-700 ring-emerald-100' },
+        { label: 'Credits', value: metrics.credits, helper: `${metrics.totalCredits - metrics.credits} remaining`, icon: <FaGraduationCap />, tone: 'bg-indigo-50 text-indigo-700 ring-indigo-100' },
+    ] : []
 
     return (
-        // FIX 7: add `relative` so the absolute gradient bg-div is clipped to this element
         <main className="relative min-h-screen bg-slate-50 text-slate-900">
             <div className="absolute inset-x-0 top-0 -z-10 h-80 bg-gradient-to-b from-blue-100/70 via-sky-50/40 to-transparent" />
 
-
-
-            {/* ── Error Banner ─────────────────────────────────────────────────── */}
             {error && (
-                <div className="mx-auto max-w-7xl px-4 pt-4 lg:px-8">
+                <div className="px-4 pt-4 lg:px-0 lg:pt-0">
                     <div className="flex items-center gap-3 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
                         <FaExclamationCircle className="shrink-0 text-amber-500" />
-                        <span>
-							Could not reach the server — showing cached data.{' '}
-                            <button onClick={refetch} className="font-semibold underline">
-								Retry
-							</button>
-						</span>
+                        <span className="flex-1">Showing cached data.{' '}<button onClick={refetch} className="font-semibold underline">Retry</button></span>
                     </div>
                 </div>
             )}
 
-            <div className="mx-auto max-w-7xl px-4 py-6 lg:px-8 lg:py-8">
-
-                {/* ── Hero + Credit Ring ───────────────────────────────────────── */}
-                <section className="grid gap-5 lg:grid-cols-[1.35fr_0.65fr]">
-                    <div className="overflow-hidden rounded-[2rem] bg-gradient-to-br from-blue-700 via-blue-600 to-sky-500 p-6 text-white shadow-xl shadow-blue-200/60 lg:p-8">
-                        <div className="grid items-center gap-6 md:grid-cols-[1fr_240px]">
+            <div className="space-y-5">
+                {/* ── Hero + Credit Ring ─────────────────────────────────────── */}
+                <section className="grid gap-4 lg:grid-cols-[1.35fr_0.65fr]">
+                    <div className="overflow-hidden rounded-[1.75rem] bg-gradient-to-br from-blue-700 via-blue-600 to-sky-500 p-5 text-white shadow-xl shadow-blue-200/60 lg:p-8">
+                        <div className="grid items-center gap-4 md:grid-cols-[1fr_200px]">
                             <div>
-                                <p className="text-xs font-bold uppercase tracking-[0.22em] text-blue-100/90">Welcome back</p>
-                                <h1 className="mt-3 text-3xl font-semibold leading-tight tracking-tight lg:text-4xl">
+                                <p className="text-[10px] font-bold uppercase tracking-[0.22em] text-blue-100/90">Welcome back</p>
+                                <h1 className="mt-2 text-2xl font-semibold leading-tight tracking-tight lg:text-4xl">
                                     {profile ? `Hey, ${profile.name.split(' ')[0]}! 👋` : 'Your academic day is ready.'}
                                 </h1>
-                                <p className="mt-3 text-sm leading-7 text-blue-50">
-                                    {profile?.faculty} · {profile?.year}
-                                </p>
-                                <div className="mt-6 flex flex-wrap gap-3">
-                                    <a href="/timetable" className="inline-flex h-11 items-center gap-2 rounded-2xl bg-white px-5 text-sm font-semibold text-blue-700 shadow-lg transition hover:bg-blue-50">
-                                        <FaBookOpen /> View timetable
+                                <p className="mt-2 text-sm text-blue-50">{profile?.faculty} · {profile?.year}</p>
+                                <div className="mt-4 flex flex-wrap gap-2">
+                                    <a href="/timetable" className="inline-flex h-10 items-center gap-2 rounded-2xl bg-white px-4 text-sm font-semibold text-blue-700 shadow-lg transition hover:bg-blue-50 active:scale-95">
+                                        <FaBookOpen /> Timetable
                                     </a>
-                                    <a href="/notes" className="inline-flex h-11 items-center gap-2 rounded-2xl bg-white/15 px-5 text-sm font-semibold text-white ring-1 ring-white/20 transition hover:bg-white/20">
+                                    <a href="/notes" className="inline-flex h-10 items-center gap-2 rounded-2xl bg-white/15 px-4 text-sm font-semibold text-white ring-1 ring-white/20 transition hover:bg-white/20 active:scale-95">
                                         <FaPenNib /> Add note
                                     </a>
                                 </div>
                             </div>
-                            <div className="hidden h-52 opacity-80 md:block">
+                            <div className="hidden h-44 opacity-80 md:block">
                                 <DashboardIllustration />
                             </div>
                         </div>
                     </div>
 
                     {/* Credit Ring */}
-                    <aside className="flex flex-col rounded-[2rem] border border-slate-200 bg-white p-5 shadow-sm">
+                    <aside className="flex flex-col rounded-[1.75rem] border border-slate-200 bg-white p-5 shadow-sm">
                         <div className="flex items-center justify-between">
                             <div>
                                 <p className="text-sm font-semibold text-slate-900">Credit Progress</p>
-                                <p className="mt-0.5 text-sm text-slate-500">
-                                    {metrics ? `${metrics.credits} of ${metrics.totalCredits} completed` : '—'}
+                                <p className="mt-0.5 text-xs text-slate-500">
+                                    {metrics ? `${metrics.credits} / ${metrics.totalCredits}` : '—'}
                                 </p>
                             </div>
-                            <FaChartLine className="text-2xl text-blue-600" />
+                            <FaChartLine className="text-xl text-blue-600" />
                         </div>
-                        <div className="flex flex-1 items-center justify-center py-4">
-                            <div className="relative flex h-32 w-32 items-center justify-center">
-                                <svg viewBox="0 0 100 100" className="h-32 w-32 -rotate-90">
+                        <div className="flex flex-1 items-center justify-center py-3">
+                            <div className="relative flex h-28 w-28 items-center justify-center">
+                                <svg viewBox="0 0 100 100" className="h-28 w-28 -rotate-90">
                                     <circle cx="50" cy="50" r="42" className="fill-none stroke-slate-100" strokeWidth="10" />
-                                    <circle
-                                        cx="50"
-                                        cy="50"
-                                        r="42"
-                                        className="fill-none stroke-blue-600"
-                                        strokeWidth="10"
-                                        strokeLinecap="round"
-                                        strokeDasharray={`${2 * Math.PI * 42}`}
-                                        strokeDashoffset={`${2 * Math.PI * 42 * (1 - progress / 100)}`}
-                                        style={{ transition: 'stroke-dashoffset 1s ease' }}
+                                    <circle cx="50" cy="50" r="42" className="fill-none stroke-blue-600" strokeWidth="10" strokeLinecap="round"
+                                            strokeDasharray={`${2 * Math.PI * 42}`}
+                                            strokeDashoffset={`${2 * Math.PI * 42 * (1 - progress / 100)}`}
+                                            style={{ transition: 'stroke-dashoffset 1s ease' }}
                                     />
                                 </svg>
                                 <div className="absolute text-center">
-                                    <p className="text-3xl font-semibold text-slate-900">{progress}%</p>
-                                    <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-slate-400">Done</p>
+                                    <p className="text-2xl font-semibold text-slate-900">{progress}%</p>
+                                    <p className="text-[9px] font-bold uppercase tracking-[0.18em] text-slate-400">Done</p>
                                 </div>
                             </div>
                         </div>
                         {gpa && (
-                            <div className="mt-2 grid grid-cols-3 gap-2 border-t border-slate-100 pt-3 text-center">
+                            <div className="grid grid-cols-3 gap-1 border-t border-slate-100 pt-3 text-center">
                                 {[
-                                    { label: 'Current GPA', val: gpa.current.toFixed(2) },
-                                    { label: 'Previous', val: gpa.previous.toFixed(2) },
+                                    { label: 'GPA', val: gpa.current.toFixed(2) },
+                                    { label: 'Prev', val: gpa.previous.toFixed(2) },
                                     { label: 'Target', val: gpa.target.toFixed(2) },
-                                ].map((g) => (
+                                ].map(g => (
                                     <div key={g.label}>
-                                        <p className="text-base font-semibold text-slate-900">{g.val}</p>
+                                        <p className="text-sm font-semibold text-slate-900">{g.val}</p>
                                         <p className="text-[10px] text-slate-400">{g.label}</p>
                                     </div>
                                 ))}
@@ -650,78 +459,71 @@ export default function Dashboard() {
                     </aside>
                 </section>
 
-                {/* ── Metric Cards ─────────────────────────────────────────────── */}
-                <section className="grid grid-cols-2 gap-3 pt-5 lg:grid-cols-4">
+                {/* ── Metric Cards ──────────────────────────────────────────── */}
+                <section className="grid grid-cols-2 gap-3 lg:grid-cols-4">
                     {loading && !metrics
                         ? Array.from({ length: 4 }).map((_, i) => <SkeletonCard key={i} />)
-                        : metricCards.map((card) => (
-                            <article
-                                key={card.label}
-                                className="rounded-3xl border border-slate-200 bg-white p-4 shadow-sm transition hover:-translate-y-0.5 hover:shadow-lg"
-                            >
-                                <div className="flex items-start justify-between gap-3">
-                                    <div>
-                                        <p className="text-xs font-medium text-slate-500">{card.label}</p>
-                                        <p className="mt-2 text-3xl font-semibold tracking-tight text-slate-900">{card.value}</p>
+                        : metricCards.map(card => (
+                            <article key={card.label} className="rounded-3xl border border-slate-200 bg-white p-4 shadow-sm transition hover:-translate-y-0.5 hover:shadow-lg">
+                                <div className="flex items-start justify-between gap-2">
+                                    <div className="min-w-0">
+                                        <p className="truncate text-xs font-medium text-slate-500">{card.label}</p>
+                                        <p className="mt-1.5 text-2xl font-semibold tracking-tight text-slate-900 lg:text-3xl">{card.value}</p>
                                     </div>
-                                    <div className={`flex h-11 w-11 items-center justify-center rounded-2xl ring-1 ${card.tone}`}>
-                                        <span className="text-lg">{card.icon}</span>
+                                    <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl ring-1 ${card.tone}`}>
+                                        <span className="text-base">{card.icon}</span>
                                     </div>
                                 </div>
-                                <p className="mt-3 text-xs font-medium text-slate-500">{card.helper}</p>
+                                <p className="mt-2 text-xs font-medium text-slate-500 leading-tight">{card.helper}</p>
                             </article>
-                        ))}
+                        ))
+                    }
                 </section>
+
+                {/* ── Quick Nav ────────────────────────────────────────────── */}
                 <QuickNav />
-                {/* ── Lectures + Assignments ───────────────────────────────────── */}
-                <section className="grid gap-5 pt-6 lg:grid-cols-[1fr_0.85fr]">
+
+                {/* ── Lectures + Assignments ─────────────────────────────── */}
+                <section className="grid gap-5 lg:grid-cols-[1fr_0.85fr]">
                     {/* Lectures */}
                     <div>
                         <div className="mb-3 flex items-center justify-between gap-3">
                             <div>
-                                <h2 className="text-lg font-semibold tracking-tight text-slate-900">Today's Lectures</h2>
+                                <h2 className="text-base font-semibold tracking-tight text-slate-900 lg:text-lg">Today's Lectures</h2>
                                 <p className="text-sm text-slate-500">Your sessions and locations</p>
                             </div>
-                            <FaRegCalendarCheck className="text-xl text-blue-600" />
+                            <FaRegCalendarCheck className="text-lg text-blue-600" />
                         </div>
                         <div className="space-y-3">
                             {loading && lectures.length === 0
                                 ? Array.from({ length: 3 }).map((_, i) => <SkeletonCard key={i} />)
-                                : lectures.map((lecture) => (
-                                    <article
-                                        key={lecture.id}
-                                        className={`rounded-3xl border p-4 shadow-sm transition hover:-translate-y-0.5 hover:shadow-lg ${
-                                            lecture.isNext
-                                                ? 'border-blue-200 bg-gradient-to-br from-blue-50 to-white ring-1 ring-blue-100'
-                                                : 'border-slate-200 bg-white'
-                                        }`}
-                                    >
-                                        <div className="flex items-start justify-between gap-3">
-                                            <div>
+                                : lectures.map(lecture => (
+                                    <article key={lecture.id} className={`rounded-3xl border p-4 shadow-sm transition hover:-translate-y-0.5 hover:shadow-lg ${
+                                        lecture.isNext ? 'border-blue-200 bg-gradient-to-br from-blue-50 to-white ring-1 ring-blue-100' : 'border-slate-200 bg-white'
+                                    }`}>
+                                        <div className="flex items-start justify-between gap-2">
+                                            <div className="min-w-0 flex-1">
                                                 <div className="flex flex-wrap items-center gap-2">
-                                                    <h3 className="text-base font-semibold text-slate-900">{lecture.title}</h3>
+                                                    <h3 className="truncate text-sm font-semibold text-slate-900">{lecture.title}</h3>
                                                     {lecture.isNext && (
-                                                        <span className="rounded-full bg-blue-600 px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.2em] text-white">
-																Next
-															</span>
+                                                        <span className="shrink-0 rounded-full bg-blue-600 px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider text-white">Next</span>
                                                     )}
                                                 </div>
-                                                <p className="mt-1 text-sm text-slate-500">{lecture.lecturer}</p>
+                                                <p className="mt-0.5 text-xs text-slate-500">{lecture.lecturer}</p>
                                             </div>
-                                            <FaClock className="mt-1 shrink-0 text-slate-400" />
+                                            <FaClock className="mt-0.5 shrink-0 text-slate-300" />
                                         </div>
-                                        <div className="mt-4 grid gap-2 text-sm text-slate-600 sm:grid-cols-2">
-												<span className="flex items-center gap-2">
-													<FaClock className="text-blue-600" />
-                                                    {lecture.startTime} – {lecture.endTime}
-												</span>
-                                            <span className="flex items-center gap-2">
-													<FaMapMarkerAlt className="text-blue-600" />
-                                                {lecture.building}, {lecture.room}
-												</span>
+                                        <div className="mt-3 flex flex-wrap gap-x-4 gap-y-1 text-xs text-slate-600">
+                                            <span className="flex items-center gap-1.5">
+                                                <FaClock className="text-blue-600" />{lecture.startTime} – {lecture.endTime}
+                                            </span>
+                                            <span className="flex items-center gap-1.5">
+                                                <FaMapMarkerAlt className="text-blue-600" />{lecture.building}, {lecture.room}
+                                            </span>
                                         </div>
                                     </article>
-                                ))}
+                                ))
+                            }
                         </div>
                     </div>
 
@@ -729,52 +531,46 @@ export default function Dashboard() {
                     <div>
                         <div className="mb-3 flex items-center justify-between gap-3">
                             <div>
-                                <h2 className="text-lg font-semibold tracking-tight text-slate-900">Assignment Focus</h2>
+                                <h2 className="text-base font-semibold tracking-tight text-slate-900 lg:text-lg">Assignment Focus</h2>
                                 <p className="text-sm text-slate-500">Coursework needing attention</p>
                             </div>
-                            <FaClipboardList className="text-xl text-blue-600" />
+                            <FaClipboardList className="text-lg text-blue-600" />
                         </div>
-                        <div className="rounded-[2rem] border border-slate-200 bg-white p-4 shadow-sm">
+                        <div className="rounded-[1.75rem] border border-slate-200 bg-white p-4 shadow-sm">
                             <div className="space-y-2">
                                 {loading && assignments.length === 0
                                     ? Array.from({ length: 3 }).map((_, i) => <SkeletonCard key={i} />)
-                                    : assignments.map((task) => (
-                                        <article key={task.id} className="flex items-start gap-3 rounded-2xl bg-slate-50 p-4">
+                                    : assignments.map(task => (
+                                        <article key={task.id} className="flex items-start gap-3 rounded-2xl bg-slate-50 p-3">
                                             <PriorityDot priority={task.priority} />
                                             <div className="min-w-0 flex-1">
                                                 <h3 className="truncate text-sm font-semibold text-slate-900">{task.title}</h3>
-                                                {/* FIX 8: toLocaleString instead of toLocaleDateString for correct time display */}
-                                                <p className="mt-0.5 text-xs text-slate-500">
-                                                    {task.course} · Due {formatDueDate(task.dueDate)}
-                                                </p>
+                                                <p className="mt-0.5 text-xs text-slate-500">{task.course} · Due {formatDueDate(task.dueDate)}</p>
                                             </div>
                                             <StatusBadge status={task.status} />
                                         </article>
-                                    ))}
+                                    ))
+                                }
                             </div>
                         </div>
                     </div>
                 </section>
 
-                {/* ── Achievements ─────────────────────────────────────────────── */}
+                {/* ── Achievements ──────────────────────────────────────────── */}
                 {achievements.length > 0 && (
-                    <section className="pt-6">
+                    <section>
                         <div className="mb-3 flex items-center justify-between">
                             <div>
-                                <h2 className="text-lg font-semibold tracking-tight text-slate-900">Course Results</h2>
+                                <h2 className="text-base font-semibold tracking-tight text-slate-900 lg:text-lg">Course Results</h2>
                                 <p className="text-sm text-slate-500">Your published course grades</p>
                             </div>
-                            <FaTrophy className="text-xl text-amber-500" />
+                            <FaTrophy className="text-lg text-amber-500" />
                         </div>
                         <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
-                            {achievements.map((a) => (
-                                <div
-                                    key={a.id}
-                                    className="flex items-center gap-3 rounded-3xl border border-slate-200 bg-white p-4 shadow-sm"
-                                >
-                                    
-                                    <div>
-                                        <p className="text-sm font-semibold text-slate-900">{a.title}</p>
+                            {achievements.map(a => (
+                                <div key={a.id} className="flex items-center gap-3 rounded-3xl border border-slate-200 bg-white p-4 shadow-sm">
+                                    <div className="min-w-0">
+                                        <p className="truncate text-sm font-semibold text-slate-900">{a.title}</p>
                                         <p className="text-xs text-slate-400">{a.earnedAt}</p>
                                     </div>
                                 </div>
@@ -782,10 +578,7 @@ export default function Dashboard() {
                         </div>
                     </section>
                 )}
-
             </div>
-
-            <BottomNavigation />
         </main>
     )
 }

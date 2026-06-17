@@ -68,7 +68,7 @@ export default function MyNotes() {
                             className="inline-flex h-10 items-center gap-2 rounded-2xl bg-gradient-to-r from-blue-700 via-blue-600 to-sky-500 px-4 text-sm font-semibold text-white shadow-md transition hover:opacity-90"
                         >
                             <FaPlus className="text-xs" />
-                            New note
+                           Note
                         </a>
                         <a
                             href="/dashboard"
