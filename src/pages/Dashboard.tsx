@@ -124,7 +124,9 @@ interface ApiResult {
     course: string
     grade: string
 }
-
+interface ApiResponse<T> {
+    data: T
+}
 const GRADE_POINTS: Record<string, number> = {
     'A+': 4.0, A: 4.0, 'A-': 3.7,
     'B+': 3.3, B: 3.0, 'B-': 2.7,
@@ -176,6 +178,7 @@ function findNextLectureIndex(entries: ApiTimetableEntry[]): number {
 }
 
 function mapProfile(p: ApiProfile): Profile {
+
     return {
         name: p.name,
         email: localStorage.getItem('smart-campus-user-email') ?? '',
@@ -188,6 +191,7 @@ function mapProfile(p: ApiProfile): Profile {
 
 function buildMetrics(p: ApiProfile, tt: ApiTimetableEntry[], aa: ApiAssignment[]): Metrics {
     const now = Date.now(), weekMs = 7 * 86400000
+
     return {
         todayLectures: tt.length,
         pendingAssignments: aa.filter(a => a.status.toLowerCase() !== 'completed').length,
@@ -202,6 +206,7 @@ function buildMetrics(p: ApiProfile, tt: ApiTimetableEntry[], aa: ApiAssignment[
 }
 
 function mapTimetable(entries: ApiTimetableEntry[]): DashboardLecture[] {
+
     const nextIdx = findNextLectureIndex(entries)
     return entries.map((e, i) => {
         const { startTime, endTime } = parseTimeRange(e.time)
@@ -210,6 +215,7 @@ function mapTimetable(entries: ApiTimetableEntry[]): DashboardLecture[] {
 }
 
 function mapAssignmentStatus(s: string): AssignmentStatus {
+
     const n = s.toLowerCase()
     if (n === 'completed') return 'Submitted'
     if (n === 'pending') return 'In Progress'
@@ -224,6 +230,7 @@ function assignmentPriority(dueDate: string): AssignmentPriority {
 }
 
 function mapAssignments(aa: ApiAssignment[]): DashboardAssignment[] {
+
     return aa.map(a => ({ id: a.id, title: a.title, course: 'Coursework', dueDate: a.dueDate, status: mapAssignmentStatus(a.status), priority: assignmentPriority(a.dueDate) }))
 }
 
@@ -261,21 +268,27 @@ const FALLBACK: DashboardData = {
 }
 
 async function fetchDashboard(): Promise<DashboardData> {
+
     const [profile, timetable, assignments, notifications, results] = await Promise.all([
-        api.get<ApiProfile>('/api/users/profile'),
-        api.get<ApiTimetableEntry[]>('/api/timetable/today'),
-        api.get<ApiAssignment[]>('/api/assignments'),
-        api.get<ApiNotification[]>('/api/notifications'),
-        api.get<ApiResult[]>('/api/results'),
+        api.get<ApiResponse<ApiProfile>>('/api/users/profile'),
+        api.get<ApiResponse<ApiTimetableEntry[]>>('/api/timetable/today'),
+        api.get<ApiResponse<ApiAssignment[]>>('/api/assignments'),
+        api.get<ApiResponse<ApiNotification[]>>('/api/notifications'),
+        api.get<ApiResponse<ApiResult[]>>('/api/results'),
     ])
     return {
-        profile: mapProfile(profile),
-        metrics: buildMetrics(profile, timetable, assignments),
-        lectures: mapTimetable(timetable),
-        assignments: mapAssignments(assignments),
-        notifications: notifications.map(n => ({ id: n.id, message: n.message, type: 'info' as NotificationType, time: 'Recently', read: false })),
-        achievements: mapResultsToAchievements(results),
-        gpa: computeGpa(results),
+        profile: mapProfile(profile.data),
+        metrics: buildMetrics(profile.data, timetable.data, assignments.data),
+        lectures: mapTimetable(timetable.data),
+        assignments: mapAssignments(assignments.data),
+        notifications: notifications.data.map((n) => ({
+            id: n.id,
+            message: n.message,
+            type: 'info' as NotificationType,
+            time: 'Recently',
+            read: false,
+        })),        achievements: mapResultsToAchievements(results.data),
+        gpa: computeGpa(results.data),
     }
 }
 

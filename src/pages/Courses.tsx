@@ -42,16 +42,8 @@ function gradeColor(grade: string): string {
 }
 
 // Demo enrolled courses for when API doesn't have a courses endpoint
-const DEMO_COURSES: Course[] = [
-    { code: 'MWD', name: 'Mobile Web Development', credits: 3 },
-    { code: 'DS', name: 'Distributed Systems', credits: 3 },
-    { code: 'DBS', name: 'Database Systems', credits: 3 },
-    { code: 'SE', name: 'Software Engineering', credits: 3 },
-    { code: 'HCI', name: 'Human Computer Interaction', credits: 3 },
-    { code: 'NET', name: 'Network Security', credits: 3 },
-]
-
 export default function Courses() {
+    const [courses, setCourses] = useState<Course[]>([])
     const [results, setResults] = useState<Result[]>([])
     const [loading, setLoading] = useState(true)
     const [error, setError] = useState<string | null>(null)
@@ -65,37 +57,36 @@ export default function Courses() {
         setLoading(true)
         setError(null)
         try {
-            const res = await fetch(`${API_BASE}/api/results`, {
-                headers: { Authorization: `Bearer ${token}` },
-            })
-            const data = await res.json()
-            if (!res.ok) throw new Error(data.message || 'Failed to fetch')
-            setResults(data as Result[])
+            const headers = { Authorization: `Bearer ${token}` }
+            const [coursesRes, resultsRes] = await Promise.all([
+                fetch(`${API_BASE}/api/courses`, { headers }),
+                fetch(`${API_BASE}/api/results`, { headers }),
+            ])
+            const coursesData = await coursesRes.json()
+            const resultsData = await resultsRes.json()
+            if (!coursesRes.ok) throw new Error(coursesData.message || 'Failed to fetch courses')
+            if (!resultsRes.ok) throw new Error(resultsData.message || 'Failed to fetch results')
+            const rawCourses = Array.isArray(coursesData) ? coursesData : (coursesData.data ?? [])
+            const rawResults = Array.isArray(resultsData) ? resultsData : (resultsData.data ?? [])
+            setCourses(rawCourses as Course[])
+            setResults(rawResults as Result[])
         } catch (err) {
-            setError(err instanceof Error ? err.message : 'Could not load results')
+            setError(err instanceof Error ? err.message : 'Could not load data')
         } finally {
             setLoading(false)
         }
     }, [token])
 
-    // eslint-disable-next-line react-hooks/set-state-in-effect
     useEffect(() => { void fetchData() }, [fetchData])
 
-    // Merge demo courses with actual results
-    const enrichedCourses: (Course & { grade?: string })[] = DEMO_COURSES.map(c => {
+    // Merge courses with results by course code or name
+    const enrichedCourses: (Course & { grade?: string })[] = courses.map(c => {
         const result = results.find(r =>
             r.course.toLowerCase().includes(c.name.toLowerCase().split(' ')[0]) ||
-            r.course.toLowerCase().includes(c.code.toLowerCase())
+            r.course.toLowerCase() === c.name.toLowerCase() ||
+            (c.code && r.course.toLowerCase().includes(c.code.toLowerCase()))
         )
         return { ...c, grade: result?.grade }
-    })
-
-    // Add any results not matched to demo courses
-    results.forEach(r => {
-        const already = enrichedCourses.some(c => c.grade === r.grade && c.name.toLowerCase().includes(r.course.toLowerCase().split(' ')[0]))
-        if (!already && !enrichedCourses.find(c => c.grade === r.grade)) {
-            // find unmatched
-        }
     })
 
     const allGrades = results.map(r => GRADE_POINTS[r.grade.trim().toUpperCase()] ?? 0)

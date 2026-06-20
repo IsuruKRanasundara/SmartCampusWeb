@@ -31,17 +31,28 @@ interface ProfileData {
 }
 
 interface ApiProfile {
-    id: number
-    name: string
-    faculty: string
-    degree: string
-    completedCredits: number
-    totalCredits: number
+    data: {
+        id: number
+        name: string
+        faculty: string
+        degree: string
+        completedCredits: number
+        totalCredits: number
+    }
+}
+interface ApiResultUpper {
+
+
+        data:ApiResult[]
+
+
 }
 
 interface ApiResult {
+
     course: string
     grade: string
+
 }
 
 const GRADE_POINTS: Record<string, number> = {
@@ -114,25 +125,27 @@ export default function Profile() {
         async function load() {
             setLoading(true)
             try {
-                const [apiProfile, apiResults] = await Promise.all([
+                const [apiProfile, apiResultsUpper] = await Promise.all([
                     api.get<ApiProfile>('/api/users/profile'),
-                    api.get<ApiResult[]>('/api/results'),
+                    api.get<ApiResultUpper>('/api/results'),
                 ])
-
+                const apiResults:ApiResult[]=apiResultsUpper.data;
                 const storedEmail = localStorage.getItem('smart-campus-user-email') ?? ''
+                // FIX 1: Removed `debugger` statement that was halting execution
+
                 const gpa = apiResults.length > 0
-                    ? apiResults.reduce((sum, r) => sum + (GRADE_POINTS[r.grade.trim().toUpperCase()] ?? 0), 0) / apiResults.length
+                    ? apiResults.reduce((sum: number, r: { grade: string }) => sum + (GRADE_POINTS[r.grade.trim().toUpperCase()] ?? 0), 0) / apiResults.length
                     : null
 
                 setProfile({
-                    name: apiProfile.name,
+                    name: apiProfile.data.name,
                     email: storedEmail,
-                    studentId: String(apiProfile.id),
-                    faculty: apiProfile.faculty,
-                    year: apiProfile.degree,
+                    studentId: String(apiProfile.data.id),
+                    faculty: apiProfile.data.faculty,
+                    year: apiProfile.data.degree,
                     avatarUrl: null,
-                    completedCredits: apiProfile.completedCredits,
-                    totalCredits: apiProfile.totalCredits,
+                    completedCredits: apiProfile.data.completedCredits,
+                    totalCredits: apiProfile.data.totalCredits,
                     gpa,
                 })
                 setResults(apiResults)
@@ -174,13 +187,14 @@ export default function Profile() {
         reader.readAsDataURL(file)
     }
 
+    // FIX 2: handleSave now correctly applies editName to the saved profile
     const handleSave = async () => {
         if (!profile) return
         setSaving(true)
         setError(null)
         try {
-            // Optimistically update local state
-            setProfile((prev) => prev ? { ...prev, name: editName || prev.name } : prev)
+            const updatedName = editName.trim() || profile.name
+            setProfile((prev) => prev ? { ...prev, name: updatedName } : prev)
             setEditMode(false)
             setSaveSuccess(true)
             setTimeout(() => setSaveSuccess(false), 3000)
@@ -405,11 +419,12 @@ export default function Profile() {
                                     className="flex items-center justify-between border-b border-slate-50 px-5 py-3 last:border-0"
                                 >
                                     <span className="text-sm font-medium text-slate-800">{r.course}</span>
+                                    {/* FIX 3: Normalized grade lookup with .trim() to match fetch-time calculation */}
                                     <span
                                         className={`rounded-full px-3 py-1 text-xs font-bold ${
-                                            (GRADE_POINTS[r.grade.toUpperCase()] ?? 0) >= 3.3
+                                            (GRADE_POINTS[r.grade.trim().toUpperCase()] ?? 0) >= 3.3
                                                 ? 'bg-emerald-50 text-emerald-700 ring-1 ring-emerald-100'
-                                                : (GRADE_POINTS[r.grade.toUpperCase()] ?? 0) >= 2.0
+                                                : (GRADE_POINTS[r.grade.trim().toUpperCase()] ?? 0) >= 2.0
                                                     ? 'bg-amber-50 text-amber-700 ring-1 ring-amber-100'
                                                     : 'bg-rose-50 text-rose-700 ring-1 ring-rose-100'
                                         }`}

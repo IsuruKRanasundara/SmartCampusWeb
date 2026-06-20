@@ -19,34 +19,33 @@ import { api, parseTimeRange, type ApiTimetableEntry } from '../utils/api'
 export default function Timetable() {
     const today = getCurrentWeekday()
     const [selectedDay, setSelectedDay] = useState<Weekday>(today)
-    const [todayFromApi, setTodayFromApi] = useState<ApiTimetableEntry[] | null>(null)
+    const [scheduleByDay, setScheduleByDay] = useState<Partial<Record<Weekday, ApiTimetableEntry[]>>>({})
     const [loading, setLoading] = useState(true)
     const [error, setError] = useState<string | null>(null)
 
-    // Single canonical fetch function — no duplicate useEffect
-    const fetchTimetable = useCallback(async () => {
+    // Fetch timetable for the requested day from the API
+    const fetchTimetable = useCallback(async (day: Weekday) => {
         setLoading(true)
         setError(null)
         try {
-            const entries = await api.get<ApiTimetableEntry[]>('/api/timetable/today')
-            setTodayFromApi(entries)
+            const endpoint = day === today ? '/api/timetable/today' : `/api/timetable/day/${day}`
+            const entries = await api.get<ApiTimetableEntry[]>(endpoint)
+            setScheduleByDay(prev => ({ ...prev, [day]: entries }))
         } catch (err) {
             console.error('Timetable fetch error:', err)
             setError('Could not reach the server — showing cached schedule.')
-            setTodayFromApi(FALLBACK_WEEKLY_TIMETABLE[today])
+            setScheduleByDay(prev => ({ ...prev, [day]: FALLBACK_WEEKLY_TIMETABLE[day] ?? [] }))
         } finally {
             setLoading(false)
         }
     }, [today])
 
     useEffect(() => {
-        void fetchTimetable()
-    }, [fetchTimetable])
+        void fetchTimetable(selectedDay)
+    }, [fetchTimetable, selectedDay])
 
     const sessions: ApiTimetableEntry[] =
-        selectedDay === today && todayFromApi !== null
-            ? todayFromApi
-            : FALLBACK_WEEKLY_TIMETABLE[selectedDay] ?? []
+        scheduleByDay[selectedDay] ?? []
 
     const dateLabel = new Date().toLocaleDateString('en-GB', {
         weekday: 'long',
@@ -106,7 +105,7 @@ export default function Timetable() {
                     <div className="flex shrink-0 items-center gap-2">
                         <button
                             type="button"
-                            onClick={() => void fetchTimetable()}
+                            onClick={() => void fetchTimetable(selectedDay)}
                             className="flex h-9 w-9 items-center justify-center rounded-xl border border-slate-200 text-slate-500 transition hover:border-blue-200 hover:bg-blue-50 hover:text-blue-600 active:scale-95"
                             title="Refresh timetable"
                             disabled={loading}
@@ -130,7 +129,7 @@ export default function Timetable() {
                     <p className="text-[10px] font-bold uppercase tracking-[0.22em] text-blue-100/90">Weekly schedule</p>
                     <h1 className="mt-1.5 text-xl font-semibold tracking-tight lg:text-3xl">Your class timetable</h1>
                     <p className="mt-1 text-xs text-blue-100 lg:text-sm">{dateLabel}</p>
-                    {selectedDay === today && todayFromApi && !error && (
+                    {selectedDay in scheduleByDay && !error && (
                         <p className="mt-3 inline-flex items-center gap-1.5 rounded-full bg-white/15 px-3 py-1 text-[11px] font-medium text-white ring-1 ring-white/20">
                             <FaCalendarAlt className="text-[10px]" />
                             Live from server
@@ -145,7 +144,7 @@ export default function Timetable() {
                         <span className="flex-1">{error}</span>
                         <button
                             type="button"
-                            onClick={() => void fetchTimetable()}
+                            onClick={() => void fetchTimetable(selectedDay)}
                             className="shrink-0 font-semibold underline"
                         >
                             Retry

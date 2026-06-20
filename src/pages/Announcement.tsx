@@ -76,7 +76,8 @@ export default function Announcements() {
             })
             const data = await res.json()
             if (!res.ok) throw new Error(data.message || 'Failed to fetch')
-            setAnnouncements(data.data as Announcement[])
+            const list = Array.isArray(data) ? data : (data.data ?? [])
+            setAnnouncements(list as Announcement[])
         } catch (err) {
             setError(err instanceof Error ? err.message : 'Failed to load announcements')
         } finally {

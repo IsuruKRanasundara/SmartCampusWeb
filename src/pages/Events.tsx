@@ -73,7 +73,8 @@ export default function Events() {
             })
             const data = await res.json()
             if (!res.ok) throw new Error(data.message || 'Failed to fetch')
-            setEvents(data.data as Event[])
+            const list = Array.isArray(data) ? data : (data.data ?? [])
+            setEvents(list as Event[])
         } catch (err) {
             setError(err instanceof Error ? err.message : 'Failed to load events')
         } finally {
