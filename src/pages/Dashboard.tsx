@@ -15,6 +15,7 @@ import {
     FaTrophy,
 } from 'react-icons/fa'
 import QuickNav from '../components/layout/QuickNav'
+import { api as sharedApi } from '../utils/api'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -134,19 +135,7 @@ const GRADE_POINTS: Record<string, number> = {
     D: 1.0, F: 0,
 }
 
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'https://smart-campus-web-api.vercel.app'
-
-const api = {
-    headers: () => ({
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${localStorage.getItem('token') || localStorage.getItem('smart-campus-token') || ''}`,
-    }),
-    async get<T>(endpoint: string): Promise<T> {
-        const res = await fetch(`${API_BASE_URL}${endpoint}`, { method: 'GET', headers: api.headers() })
-        if (!res.ok) throw new Error(`API error ${res.status}`)
-        return res.json() as Promise<T>
-    },
-}
+// API handled by shared utils/api (with Vercel cold-start retry)
 
 // ─── Mappers ──────────────────────────────────────────────────────────────────
 
@@ -270,11 +259,11 @@ const FALLBACK: DashboardData = {
 async function fetchDashboard(): Promise<DashboardData> {
 
     const [profile, timetable, assignments, notifications, results] = await Promise.all([
-        api.get<ApiResponse<ApiProfile>>('/api/users/profile'),
-        api.get<ApiResponse<ApiTimetableEntry[]>>('/api/timetable/today'),
-        api.get<ApiResponse<ApiAssignment[]>>('/api/assignments'),
-        api.get<ApiResponse<ApiNotification[]>>('/api/notifications'),
-        api.get<ApiResponse<ApiResult[]>>('/api/results'),
+        sharedApi.get<ApiResponse<ApiProfile>>('/api/users/profile'),
+        sharedApi.get<ApiResponse<ApiTimetableEntry[]>>('/api/timetable/today'),
+        sharedApi.get<ApiResponse<ApiAssignment[]>>('/api/assignments'),
+        sharedApi.get<ApiResponse<ApiNotification[]>>('/api/notifications'),
+        sharedApi.get<ApiResponse<ApiResult[]>>('/api/results'),
     ])
     return {
         profile: mapProfile(profile.data),
