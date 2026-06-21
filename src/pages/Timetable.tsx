@@ -29,8 +29,18 @@ export default function Timetable() {
         setError(null)
         try {
             const endpoint = day === today ? '/api/timetable/today' : `/api/timetable/day/${day}`
-            const entries = await api.get<ApiTimetableEntry[]>(endpoint)
-            setScheduleByDay(prev => ({ ...prev, [day]: entries }))
+            const response: any = await api.get(endpoint)
+
+            const entries = Array.isArray(response)
+                ? response
+                : Array.isArray(response?.data)
+                    ? response.data
+                    : []
+
+            setScheduleByDay(prev => ({
+                ...prev,
+                [day]: entries,
+            }))
         } catch (err) {
             console.error('Timetable fetch error:', err)
             setError('Could not reach the server — showing cached schedule.')
@@ -44,8 +54,11 @@ export default function Timetable() {
         void fetchTimetable(selectedDay)
     }, [fetchTimetable, selectedDay])
 
-    const sessions: ApiTimetableEntry[] =
-        scheduleByDay[selectedDay] ?? []
+    const sessions: ApiTimetableEntry[] = Array.isArray(
+        scheduleByDay[selectedDay]
+    )
+        ? scheduleByDay[selectedDay]!
+        : []
 
     const dateLabel = new Date().toLocaleDateString('en-GB', {
         weekday: 'long',
@@ -79,13 +92,14 @@ export default function Timetable() {
 
     // Find the first upcoming session index for "Next" badge
     let nextIdx = -1
-    if (selectedDay === today) {
+    if (selectedDay === today && Array.isArray(sessions)) {
         sessions.forEach((s, i) => {
             const st = getSessionStatus(s.time)
-            if (st === 'upcoming' && nextIdx === -1) nextIdx = i
+            if (st === 'upcoming' && nextIdx === -1) {
+                nextIdx = i
+            }
         })
     }
-
     return (
         <main className="relative min-h-screen bg-slate-50 text-slate-900">
             <div className="absolute inset-x-0 top-0 -z-10 h-72 bg-gradient-to-b from-blue-100/70 via-sky-50/40 to-transparent" />
@@ -207,6 +221,7 @@ export default function Timetable() {
                             <p className="mt-1 text-xs text-slate-400">Enjoy your free day!</p>
                         </div>
                     ) : (
+
                         <div className="space-y-3">
                             {sessions.map((session, index) => {
                                 const { startTime, endTime } = parseTimeRange(session.time)
