@@ -384,10 +384,10 @@ export default function Dashboard() {
 
             {error && (
                 <div className="px-4 pt-4 lg:px-0 lg:pt-0">
-                    <div className="flex items-center gap-3 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
-                        <FaExclamationCircle className="shrink-0 text-amber-500" />
-                        <span className="flex-1">Showing cached data.{' '}<button onClick={refetch} className="font-semibold underline">Retry</button></span>
-                    </div>
+                    {/*<div className="flex items-center gap-3 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">*/}
+                    {/*    <FaExclamationCircle className="shrink-0 text-amber-500" />*/}
+                    {/*    <span className="flex-1">Showing cached data.{' '}<button onClick={refetch} className="font-semibold underline">Retry</button></span>*/}
+                    {/*</div>*/}
                 </div>
             )}
 
