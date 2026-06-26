@@ -11,7 +11,6 @@ import {
     FaMapMarkerAlt,
     FaPenNib,
     FaRegCalendarCheck,
-    FaExclamationCircle,
     FaTrophy,
 } from 'react-icons/fa'
 import QuickNav from '../components/layout/QuickNav'
@@ -365,7 +364,7 @@ function DashboardIllustration() {
 // ─── Main Dashboard ───────────────────────────────────────────────────────────
 
 export default function Dashboard() {
-    const { data, loading, error, refetch } = useDashboardData()
+    const { data, loading } = useDashboardData()
     const { profile, metrics, lectures, assignments, achievements, gpa } = data
 
     const progress = metrics ? Math.round((metrics.credits / metrics.totalCredits) * 100) : 0
@@ -382,14 +381,14 @@ export default function Dashboard() {
         <main className="relative min-h-screen bg-slate-50 text-slate-900">
             <div className="absolute inset-x-0 top-0 -z-10 h-80 bg-gradient-to-b from-blue-100/70 via-sky-50/40 to-transparent" />
 
-            {error && (
-                <div className="px-4 pt-4 lg:px-0 lg:pt-0">
-                    {/*<div className="flex items-center gap-3 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">*/}
-                    {/*    <FaExclamationCircle className="shrink-0 text-amber-500" />*/}
-                    {/*    <span className="flex-1">Showing cached data.{' '}<button onClick={refetch} className="font-semibold underline">Retry</button></span>*/}
-                    {/*</div>*/}
-                </div>
-            )}
+            {/*{error && (*/}
+            {/*    <div className="px-4 pt-4 lg:px-0 lg:pt-0">*/}
+            {/*        /!*<div className="flex items-center gap-3 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">*!/*/}
+            {/*        /!*    <FaExclamationCircle className="shrink-0 text-amber-500" />*!/*/}
+            {/*        /!*    <span className="flex-1">Showing cached data.{' '}<button onClick={refetch} className="font-semibold underline">Retry</button></span>*!/*/}
+            {/*        /!*</div>*!/*/}
+            {/*    </div>*/}
+            {/*)}*/}
 
             <div className="space-y-5">
                 {/* ── Hero + Credit Ring ─────────────────────────────────────── */}
